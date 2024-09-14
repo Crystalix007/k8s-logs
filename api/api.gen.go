@@ -22,6 +22,12 @@ import (
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
 
+// LogFile defines model for LogFile.
+type LogFile struct {
+	Dir  bool   `json:"dir"`
+	Name string `json:"name"`
+}
+
 // GetLogsParams defines parameters for GetLogs.
 type GetLogsParams struct {
 	// Path The path to the directory to list logs under.
@@ -217,13 +223,16 @@ type GetLogsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *struct {
-		Logfiles *[]string `json:"logfiles,omitempty"`
+		Logfiles []LogFile `json:"logfiles"`
 	}
 	JSON400 *struct {
-		Message *string `json:"message,omitempty"`
+		Message string `json:"message"`
+	}
+	JSON404 *struct {
+		Message string `json:"message"`
 	}
 	JSON500 *struct {
-		Message *string `json:"message,omitempty"`
+		Message string `json:"message"`
 	}
 }
 
@@ -268,7 +277,7 @@ func ParseGetLogsResponse(rsp *http.Response) (*GetLogsResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
-			Logfiles *[]string `json:"logfiles,omitempty"`
+			Logfiles []LogFile `json:"logfiles"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -277,16 +286,25 @@ func ParseGetLogsResponse(rsp *http.Response) (*GetLogsResponse, error) {
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest struct {
-			Message *string `json:"message,omitempty"`
+			Message string `json:"message"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest struct {
-			Message *string `json:"message,omitempty"`
+			Message string `json:"message"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -481,7 +499,7 @@ type GetLogsResponseObject interface {
 }
 
 type GetLogs200JSONResponse struct {
-	Logfiles *[]string `json:"logfiles,omitempty"`
+	Logfiles []LogFile `json:"logfiles"`
 }
 
 func (response GetLogs200JSONResponse) VisitGetLogsResponse(w http.ResponseWriter) error {
@@ -492,7 +510,7 @@ func (response GetLogs200JSONResponse) VisitGetLogsResponse(w http.ResponseWrite
 }
 
 type GetLogs400JSONResponse struct {
-	Message *string `json:"message,omitempty"`
+	Message string `json:"message"`
 }
 
 func (response GetLogs400JSONResponse) VisitGetLogsResponse(w http.ResponseWriter) error {
@@ -502,8 +520,19 @@ func (response GetLogs400JSONResponse) VisitGetLogsResponse(w http.ResponseWrite
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetLogs404JSONResponse struct {
+	Message string `json:"message"`
+}
+
+func (response GetLogs404JSONResponse) VisitGetLogsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetLogs500JSONResponse struct {
-	Message *string `json:"message,omitempty"`
+	Message string `json:"message"`
 }
 
 func (response GetLogs500JSONResponse) VisitGetLogsResponse(w http.ResponseWriter) error {
@@ -578,13 +607,15 @@ func (sh *strictHandler) GetLogs(w http.ResponseWriter, r *http.Request, params 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/6ySQW/UTgzFv8rI5yhN+/9zyQ0EQqtWAgHiUvUwTd5mp0pmprZTiFb57sgTaemWCwJO",
-	"sZ6ef3525kgh7hO1R9KgI6il6/keHKEQd5MG9zXgG9i9/rijip7AElKklpq6qS9prShlRJ8DtfRf3dQN",
-	"VZS9HsSIF2MaSjFA7dNDOg5ZN8J7qDg9wI1B1KW9M3dNhcjeTLt+s90YxrjsJyhYqL19SftygLPBTlOB",
-	"9oHRaeLFhDLB8G6OPdiGBGt6nMELVRT9ZJtbP1Uk3QGTLydZsumiHOJA63pXEUNyioKy11XT2KdLURHL",
-	"ij7nMXQl/cWDWLLjM15m203D1j2mYR/GrcZ3P2U7/63Jl/WYBqqsvCrlXUVBMZ1bnztfJD0JntkvtP4U",
-	"0v0DOqXVpPMLfri2vv//aqUJIn7Aecy3p18Rk7p9mmP/a+LfSfjG9+4THmeIWtRX/z7qLio4+tEJ+Ans",
-	"wJz4z8KeUJ831LuCMp/M0+R52d6282fv30jrjwAAAP//biaugpQDAAA=",
+	"H4sIAAAAAAAC/7SUT2/TQBDFv8pq4Gg5bikX30BQFDWCChCXKIeNPXa2Wu9sZseFKPJ3R7tOTBOQQCI9",
+	"eRS//N78eckeKuo8OXQSoNxDqDbY6VQuqL01FmPpmTyyGEwvasPxgT905+P7RtuAGcjOI5SwJrKoHQwZ",
+	"ON3hiRIstVe5pRYmeRA2roVhyIBx2xvGGspl8jgAVpOW1g9YCQxRbFxDkS1GEvmuXyM7FAxqQa36ZvA7",
+	"snpzP4cMHpGDIQclFHmRX8XWyKPT3kAJr/IiLyADr2WTxptZalPRoqRxMVRsvIyEDyhByQaVNUEUNSqq",
+	"c0hE1lE0r0fZImIil3WHghygXJ7Tvm5QRWMllKC1YayEeBc/SA4Rr3pXI0cTE7+07ZF3x+2UqXHIDpdL",
+	"Kznb7CquNnhyYbzfdVHER0VO0KURtffWVKn72UOIne2f8E6vb6ltjB3r6bDLp5e11F6ncpWBEeyS9CVj",
+	"AyW8mP3K2+wQttkxacN0ac2sd7+FYrL+cyROV/vpLvJu/mvWDkPQ7VmG3003ciSqod7Vf43zEfQvjb/V",
+	"tfqM2x6DjBPcXHqC+5i452n+I4m6TdQhg9eXX/7cCbLTVgXkR2SFzMQXnWBy+DI6vE8OURf6rtO8G3/d",
+	"Sp/8A0TS8DMAAP//qB9SKk0FAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

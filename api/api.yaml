@@ -25,11 +25,12 @@ paths:
                   logfiles:
                     type: array
                     items:
-                      type: string
-                      example: "log1.log"
+                      $ref: "#/components/schemas/LogFile"
                     example:
                       - "log1.log"
                       - "log2.log"
+                required:
+                  - logfiles
         "400":
           description: Bad Request
           content:
@@ -40,6 +41,20 @@ paths:
                   message:
                     type: string
                     example: "Directory not found"
+                required:
+                  - message
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Path not found"
+                required:
+                  - message
         "500":
           description: Internal Server Error
           content:
@@ -50,3 +65,19 @@ paths:
                   message:
                     type: string
                     example: "Internal server error"
+                required:
+                  - message
+components:
+  schemas:
+    LogFile:
+      type: object
+      properties:
+        dir:
+          type: boolean
+          example: false
+        name:
+          type: string
+          example: "log1.log"
+      required:
+        - dir
+        - name
