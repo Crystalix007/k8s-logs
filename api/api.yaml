@@ -1,0 +1,52 @@
+openapi: 3.0.0
+info:
+  title: Kubernetes Log Viewer API
+  version: 0.0.1
+paths:
+  /logs:
+    get:
+      summary: Get a list of logs
+      description: Gets the list of logs.
+      parameters:
+        - name: path
+          in: query
+          description: The path to the directory to list logs under.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logfiles:
+                    type: array
+                    items:
+                      type: string
+                      example: "log1.log"
+                    example:
+                      - "log1.log"
+                      - "log2.log"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Directory not found"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error"
