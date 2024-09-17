@@ -78,6 +78,10 @@ components:
         name:
           type: string
           example: "log1.log"
+        path:
+          type: string
+          example: "var/log1.log"
       required:
         - dir
         - name
+        - path

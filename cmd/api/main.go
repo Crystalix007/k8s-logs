@@ -46,7 +46,10 @@ func serve(flags Flags) error {
 			api.WithWorkingDirectory(*flags.WorkingDirectory),
 		)
 
-		slog.Info("Working directory set", slog.String("working_directory", *flags.WorkingDirectory))
+		slog.Info(
+			"Working directory set",
+			slog.String("working_directory", *flags.WorkingDirectory),
+		)
 	}
 
 	api, err := api.New(apiOpts...)

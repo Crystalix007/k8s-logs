@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Kubernetes Logs</title>
+    </head>
+    <body>
+        <h1>Kubernetes Logs</h1>
+        <ul>
+            {{ range .logfiles}}
+            <li>
+                {{ if .dir }}
+                <a href="logs?path={{ .path }}">{{ .name }}</a>
+                {{ else }}
+                <a href="log?path={{ .path }}">{{ .name }}</a>
+                {{ end }}
+            </li>
+            {{ end}}
+    </body>
+</html>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path"
 	"path/filepath"
 )
 
@@ -12,11 +13,12 @@ func (a *API) GetLogs(
 	ctx context.Context,
 	request GetLogsRequestObject,
 ) (GetLogsResponseObject, error) {
+	requestPath := "/"
 	directory := a.workingDirectory
 
 	if request.Params.Path != nil {
-		subpath := filepath.Clean(*request.Params.Path)
-		directory = filepath.Join(directory, subpath)
+		requestPath = filepath.Clean(*request.Params.Path)
+		directory = filepath.Join(directory, requestPath)
 	}
 
 	direntries, err := os.ReadDir(directory)
@@ -33,6 +35,7 @@ func (a *API) GetLogs(
 	for i, direntry := range direntries {
 		response.Logfiles[i] = LogFile{
 			Name: direntry.Name(),
+			Path: path.Join(requestPath, direntry.Name()),
 			Dir:  direntry.IsDir(),
 		}
 	}

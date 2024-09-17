@@ -26,6 +26,7 @@ import (
 type LogFile struct {
 	Dir  bool   `json:"dir"`
 	Name string `json:"name"`
+	Path string `json:"path"`
 }
 
 // GetLogsParams defines parameters for GetLogs.
@@ -607,15 +608,15 @@ func (sh *strictHandler) GetLogs(w http.ResponseWriter, r *http.Request, params 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/7SUT2/TQBDFv8pq4Gg5bikX30BQFDWCChCXKIeNPXa2Wu9sZseFKPJ3R7tOTBOQQCI9",
-	"eRS//N78eckeKuo8OXQSoNxDqDbY6VQuqL01FmPpmTyyGEwvasPxgT905+P7RtuAGcjOI5SwJrKoHQwZ",
-	"ON3hiRIstVe5pRYmeRA2roVhyIBx2xvGGspl8jgAVpOW1g9YCQxRbFxDkS1GEvmuXyM7FAxqQa36ZvA7",
-	"snpzP4cMHpGDIQclFHmRX8XWyKPT3kAJr/IiLyADr2WTxptZalPRoqRxMVRsvIyEDyhByQaVNUEUNSqq",
-	"c0hE1lE0r0fZImIil3WHghygXJ7Tvm5QRWMllKC1YayEeBc/SA4Rr3pXI0cTE7+07ZF3x+2UqXHIDpdL",
-	"Kznb7CquNnhyYbzfdVHER0VO0KURtffWVKn72UOIne2f8E6vb6ltjB3r6bDLp5e11F6ncpWBEeyS9CVj",
-	"AyW8mP3K2+wQttkxacN0ac2sd7+FYrL+cyROV/vpLvJu/mvWDkPQ7VmG3003ciSqod7Vf43zEfQvjb/V",
-	"tfqM2x6DjBPcXHqC+5i452n+I4m6TdQhg9eXX/7cCbLTVgXkR2SFzMQXnWBy+DI6vE8OURf6rtO8G3/d",
-	"Sp/8A0TS8DMAAP//qB9SKk0FAAA=",
+	"H4sIAAAAAAAC/7RUwW7TQBD9ldXA0XLcUi6+gaCoagUVIC5VD1t77Gxl72xmx4Eo8r+jWSemCSCQCCeP",
+	"4jfvzbx58RYq6gN59BKh3EKsltjbVN5Qe+k61DIwBWRxmF7UjvWB32wf9H1ju4gZyCYglPBA1KH1MGbg",
+	"bY8HSOioPcs7amGGR2HnW0UHK8tD9Nry4vcdYwaMq8Ex1lDepal2kjuu+7mFHh6xEhi1x/mGVEacJJHr",
+	"4QHZo2A0N9SaLw6/IptXt1eQwRo5OvJQQpEX+ZlOSQG9DQ5KeJEXebHTSr7orKloUZJPGCt2QSaGdyjR",
+	"yBJN56IYaoyic0iMbBV0VU+wG6VRXrY9CnKE8u6Y7fMSjQoboURaO8ZKiDf6Q1JQejP4GllFnDatBuTN",
+	"3qRyMinbnTxZcmTwvTocA/k4Hf68KPRRkRf0aUUbQueqNP3iMepk2yd8h7HpqG1cN9Xzje+eRqKj9jyV",
+	"9xk4wT5BnzM2UMKzxY+gLnYpXewjOs6Xtsx281M2ZulfR+LQ2g/XynfxT7v2GKNtj8L/Zr6RJzENDb7+",
+	"Y6r3RH8z+Gtbm4+4GjDKtMHFqTe41cT9n+Hfk5jLxDpm8PL05l95Qfa2MxF5jWyQmfikG8wKnyaFt0lB",
+	"cXHoe8ub6d9t7MEXQJnG7wEAAP//qe6OAIYFAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
