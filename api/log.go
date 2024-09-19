@@ -4,12 +4,18 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/oapi-codegen/runtime/types"
 )
+
+// ErrUnsafePath is returned when a path is unsafe, i.e. it escapes the working
+// directory.
+var ErrUnsafePath = errors.New("api: path is unsafe")
 
 func (a *API) GetLog(
 	ctx context.Context,
@@ -23,7 +29,14 @@ func (a *API) GetLog(
 
 	name := path.Base(request.Params.Path)
 
-	fileInfo, err := os.Stat(a.getLogPath(request.Params.Path))
+	path, err := a.getSafePath(request.Params.Path)
+	if err != nil {
+		return GetLog400JSONResponse{
+			Message: "Invalid path",
+		}, nil
+	}
+
+	fileInfo, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return GetLog404JSONResponse{
 			Message: "The specified path does not exist",
@@ -53,7 +66,12 @@ func (a *API) GetLogPage(
 		}, nil
 	}
 
-	path := a.getLogPath(request.Params.Path)
+	path, err := a.getSafePath(request.Params.Path)
+	if err != nil {
+		return GetLogPage400JSONResponse{
+			Message: "Invalid path",
+		}, nil
+	}
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -125,7 +143,12 @@ func (a *API) GetLogRaw(
 		}, nil
 	}
 
-	path := a.getLogPath(request.Params.Path)
+	path, err := a.getSafePath(request.Params.Path)
+	if err != nil {
+		return GetLogRaw400JSONResponse{
+			Message: "Invalid path",
+		}, nil
+	}
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -152,8 +175,17 @@ func (a *API) GetLogRaw(
 	}, nil
 }
 
-func (a *API) getLogPath(
+func (a *API) getSafePath(
 	requestPath string,
-) string {
-	return path.Join(a.workingDirectory, path.Clean(requestPath))
+) (string, error) {
+	joinedPath := path.Join(a.workingDirectory, path.Clean(requestPath))
+
+	workDirectory := path.Clean(a.workingDirectory)
+	workDirectoryPrefix := fmt.Sprintf("%s/", workDirectory)
+
+	if joinedPath != workDirectory && !strings.HasPrefix(joinedPath, workDirectoryPrefix) {
+		return "", ErrUnsafePath
+	}
+
+	return joinedPath, nil
 }

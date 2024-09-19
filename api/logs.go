@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path"
-	"path/filepath"
 )
 
 // GetLogs retrieves logs from the log viewing service.
@@ -14,11 +13,16 @@ func (a *API) GetLogs(
 	request GetLogsRequestObject,
 ) (GetLogsResponseObject, error) {
 	requestPath := "/"
-	directory := a.workingDirectory
 
 	if request.Params.Path != nil {
-		requestPath = filepath.Clean(*request.Params.Path)
-		directory = filepath.Join(directory, requestPath)
+		requestPath = *request.Params.Path
+	}
+
+	directory, err := a.getSafePath(requestPath)
+	if err != nil {
+		return GetLogs400JSONResponse{
+			Message: "Invalid path",
+		}, nil
 	}
 
 	direntries, err := os.ReadDir(directory)
