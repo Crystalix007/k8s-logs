@@ -3,7 +3,7 @@ info:
   title: Kubernetes Log Viewer API
   version: 0.0.1
 paths:
-  /log:
+  /log/raw:
     get:
       summary: Get a log file
       description: Gets the contents of a log file.

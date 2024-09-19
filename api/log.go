@@ -9,12 +9,12 @@ import (
 	"github.com/oapi-codegen/runtime/types"
 )
 
-func (a *API) GetLog(
+func (a *API) GetLogRaw(
 	ctx context.Context,
-	request GetLogRequestObject,
-) (GetLogResponseObject, error) {
+	request GetLogRawRequestObject,
+) (GetLogRawResponseObject, error) {
 	if request.Params.Path == "" {
-		return GetLog404JSONResponse{
+		return GetLogRaw404JSONResponse{
 			Message: "The specified path does not exist",
 		}, nil
 	}
@@ -26,7 +26,7 @@ func (a *API) GetLog(
 
 	file, err := os.Open(path)
 	if err != nil {
-		return GetLog400JSONResponse{
+		return GetLogRaw400JSONResponse{
 			Message: "Failed to open file",
 		}, nil
 	}
@@ -35,7 +35,7 @@ func (a *API) GetLog(
 
 	bs, err := io.ReadAll(file)
 	if err != nil {
-		return GetLog400JSONResponse{
+		return GetLogRaw400JSONResponse{
 			Message: "Failed to read file",
 		}, nil
 	}
@@ -44,7 +44,7 @@ func (a *API) GetLog(
 
 	responseFile.InitFromBytes(bs, path)
 
-	return GetLog200JSONResponse{
+	return GetLogRaw200JSONResponse{
 		Contents: responseFile,
 	}, nil
 }

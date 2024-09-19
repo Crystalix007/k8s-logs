@@ -30,8 +30,8 @@ type LogFile struct {
 	Path string `json:"path"`
 }
 
-// GetLogParams defines parameters for GetLog.
-type GetLogParams struct {
+// GetLogRawParams defines parameters for GetLogRaw.
+type GetLogRawParams struct {
 	// Path The path to the log file.
 	Path string `form:"path" json:"path"`
 }
@@ -115,15 +115,15 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// GetLog request
-	GetLog(ctx context.Context, params *GetLogParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetLogRaw request
+	GetLogRaw(ctx context.Context, params *GetLogRawParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetLogs request
 	GetLogs(ctx context.Context, params *GetLogsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) GetLog(ctx context.Context, params *GetLogParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetLogRequest(c.Server, params)
+func (c *Client) GetLogRaw(ctx context.Context, params *GetLogRawParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetLogRawRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +146,8 @@ func (c *Client) GetLogs(ctx context.Context, params *GetLogsParams, reqEditors 
 	return c.Client.Do(req)
 }
 
-// NewGetLogRequest generates requests for GetLog
-func NewGetLogRequest(server string, params *GetLogParams) (*http.Request, error) {
+// NewGetLogRawRequest generates requests for GetLogRaw
+func NewGetLogRawRequest(server string, params *GetLogRawParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -155,7 +155,7 @@ func NewGetLogRequest(server string, params *GetLogParams) (*http.Request, error
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/log")
+	operationPath := fmt.Sprintf("/log/raw")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -283,14 +283,14 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetLogWithResponse request
-	GetLogWithResponse(ctx context.Context, params *GetLogParams, reqEditors ...RequestEditorFn) (*GetLogResponse, error)
+	// GetLogRawWithResponse request
+	GetLogRawWithResponse(ctx context.Context, params *GetLogRawParams, reqEditors ...RequestEditorFn) (*GetLogRawResponse, error)
 
 	// GetLogsWithResponse request
 	GetLogsWithResponse(ctx context.Context, params *GetLogsParams, reqEditors ...RequestEditorFn) (*GetLogsResponse, error)
 }
 
-type GetLogResponse struct {
+type GetLogRawResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *struct {
@@ -305,7 +305,7 @@ type GetLogResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r GetLogResponse) Status() string {
+func (r GetLogRawResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -313,7 +313,7 @@ func (r GetLogResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetLogResponse) StatusCode() int {
+func (r GetLogRawResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -353,13 +353,13 @@ func (r GetLogsResponse) StatusCode() int {
 	return 0
 }
 
-// GetLogWithResponse request returning *GetLogResponse
-func (c *ClientWithResponses) GetLogWithResponse(ctx context.Context, params *GetLogParams, reqEditors ...RequestEditorFn) (*GetLogResponse, error) {
-	rsp, err := c.GetLog(ctx, params, reqEditors...)
+// GetLogRawWithResponse request returning *GetLogRawResponse
+func (c *ClientWithResponses) GetLogRawWithResponse(ctx context.Context, params *GetLogRawParams, reqEditors ...RequestEditorFn) (*GetLogRawResponse, error) {
+	rsp, err := c.GetLogRaw(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetLogResponse(rsp)
+	return ParseGetLogRawResponse(rsp)
 }
 
 // GetLogsWithResponse request returning *GetLogsResponse
@@ -371,15 +371,15 @@ func (c *ClientWithResponses) GetLogsWithResponse(ctx context.Context, params *G
 	return ParseGetLogsResponse(rsp)
 }
 
-// ParseGetLogResponse parses an HTTP response from a GetLogWithResponse call
-func ParseGetLogResponse(rsp *http.Response) (*GetLogResponse, error) {
+// ParseGetLogRawResponse parses an HTTP response from a GetLogRawWithResponse call
+func ParseGetLogRawResponse(rsp *http.Response) (*GetLogRawResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetLogResponse{
+	response := &GetLogRawResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -475,8 +475,8 @@ func ParseGetLogsResponse(rsp *http.Response) (*GetLogsResponse, error) {
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get a log file
-	// (GET /log)
-	GetLog(w http.ResponseWriter, r *http.Request, params GetLogParams)
+	// (GET /log/raw)
+	GetLogRaw(w http.ResponseWriter, r *http.Request, params GetLogRawParams)
 	// Get a list of logs
 	// (GET /logs)
 	GetLogs(w http.ResponseWriter, r *http.Request, params GetLogsParams)
@@ -487,8 +487,8 @@ type ServerInterface interface {
 type Unimplemented struct{}
 
 // Get a log file
-// (GET /log)
-func (_ Unimplemented) GetLog(w http.ResponseWriter, r *http.Request, params GetLogParams) {
+// (GET /log/raw)
+func (_ Unimplemented) GetLogRaw(w http.ResponseWriter, r *http.Request, params GetLogRawParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -507,14 +507,14 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// GetLog operation middleware
-func (siw *ServerInterfaceWrapper) GetLog(w http.ResponseWriter, r *http.Request) {
+// GetLogRaw operation middleware
+func (siw *ServerInterfaceWrapper) GetLogRaw(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var err error
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetLogParams
+	var params GetLogRawParams
 
 	// ------------- Required query parameter "path" -------------
 
@@ -532,7 +532,7 @@ func (siw *ServerInterfaceWrapper) GetLog(w http.ResponseWriter, r *http.Request
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetLog(w, r, params)
+		siw.Handler.GetLogRaw(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -684,7 +684,7 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/log", wrapper.GetLog)
+		r.Get(options.BaseURL+"/log/raw", wrapper.GetLogRaw)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/logs", wrapper.GetLogs)
@@ -693,41 +693,41 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	return r
 }
 
-type GetLogRequestObject struct {
-	Params GetLogParams
+type GetLogRawRequestObject struct {
+	Params GetLogRawParams
 }
 
-type GetLogResponseObject interface {
-	VisitGetLogResponse(w http.ResponseWriter) error
+type GetLogRawResponseObject interface {
+	VisitGetLogRawResponse(w http.ResponseWriter) error
 }
 
-type GetLog200JSONResponse struct {
+type GetLogRaw200JSONResponse struct {
 	Contents openapi_types.File `json:"contents"`
 }
 
-func (response GetLog200JSONResponse) VisitGetLogResponse(w http.ResponseWriter) error {
+func (response GetLogRaw200JSONResponse) VisitGetLogRawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetLog400JSONResponse struct {
+type GetLogRaw400JSONResponse struct {
 	Message string `json:"message"`
 }
 
-func (response GetLog400JSONResponse) VisitGetLogResponse(w http.ResponseWriter) error {
+func (response GetLogRaw400JSONResponse) VisitGetLogRawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetLog404JSONResponse struct {
+type GetLogRaw404JSONResponse struct {
 	Message string `json:"message"`
 }
 
-func (response GetLog404JSONResponse) VisitGetLogResponse(w http.ResponseWriter) error {
+func (response GetLogRaw404JSONResponse) VisitGetLogRawResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
@@ -789,8 +789,8 @@ func (response GetLogs500JSONResponse) VisitGetLogsResponse(w http.ResponseWrite
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get a log file
-	// (GET /log)
-	GetLog(ctx context.Context, request GetLogRequestObject) (GetLogResponseObject, error)
+	// (GET /log/raw)
+	GetLogRaw(ctx context.Context, request GetLogRawRequestObject) (GetLogRawResponseObject, error)
 	// Get a list of logs
 	// (GET /logs)
 	GetLogs(ctx context.Context, request GetLogsRequestObject) (GetLogsResponseObject, error)
@@ -825,25 +825,25 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
-// GetLog operation middleware
-func (sh *strictHandler) GetLog(w http.ResponseWriter, r *http.Request, params GetLogParams) {
-	var request GetLogRequestObject
+// GetLogRaw operation middleware
+func (sh *strictHandler) GetLogRaw(w http.ResponseWriter, r *http.Request, params GetLogRawParams) {
+	var request GetLogRawRequestObject
 
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetLog(ctx, request.(GetLogRequestObject))
+		return sh.ssi.GetLogRaw(ctx, request.(GetLogRawRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetLog")
+		handler = middleware(handler, "GetLogRaw")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetLogResponseObject); ok {
-		if err := validResponse.VisitGetLogResponse(w); err != nil {
+	} else if validResponse, ok := response.(GetLogRawResponseObject); ok {
+		if err := validResponse.VisitGetLogRawResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -880,17 +880,17 @@ func (sh *strictHandler) GetLogs(w http.ResponseWriter, r *http.Request, params 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/7xVTW/UMBD9K9bAMdrdlnLJrQiKqq6gAsSl9OAmk6yrxOOOJ4VVtf8djTebZvtBi+hy",
-	"ihWP38y8N8++gYLaQB69RMhvIBYLbG1azqk+cg3qMjAFZHGYNkrH+sFftg26X9kmYgayDAg5XBA1aD2s",
-	"MvC2xa1IaKjemzRUwxAehZ2vNTpYWWxHX1uePn5ilQHjVecYS8jPUlV9yh7rfDhCF5dYCKz0jPMVaRpx",
-	"kpKcdBfIHgWjmVNtvjv8iWwOT48hg2vk6MhDDrPJbLKnVVJAb4ODHN5MZpNZnyvxorXqt0ZJNGEs2AVZ",
-	"A3xEiUYWaAryomwbqow1DdWmcg1OIEGz1fDjcn1gntoOlm2LghwhP7sL+22BRgswQgl9jOc04KpDXm6I",
-	"ydfEjIkT7jDrZU+03CH5XINjIB/X4u/PZvrpu9ClDaFxRSp8ehm1qpsR3vbobJq/NxUDLT88ZFARt1Z0",
-	"mJy3qfw/az/APiz5NmWHt/VusqqwB//UWIsx2vrOtM97MYwnMTFg4SqH5ZPdbLCe08w7W5oveNVh7Js4",
-	"2GkTFXX+ZRv4RGKOEqruxa5tVfA0/iN7pE31V3zaYI2LoubS6MdsFf/WV6VjLIR4qT9SBoU3nS+Rn/Da",
-	"//JWQ7VSte2ts/GV21C9n5bnGTjBNoW+Zqwgh1fT24dg2r8C080TsBqEtMx2eU/wIfVzFP98siO7vR80",
-	"2s2o7t5rpzpxO/dZBm9fnvxjL8jeNiYiXyMbZCZ+0Q6GDF/XGT6kDA/eGqMbQJFWvwMAAP//7fzG7OYI",
-	"AAA=",
+	"H4sIAAAAAAAC/7xVTW/bMAz9KwK3o5GkXXfxrcPWoWiwFd2wS9eDatOOCltUKbpdUOS/D1QcN+nH2mHJ",
+	"ThYs6j3ykU+6g4LaQB69RMjvIBYzbG1aTqk+cg3qMjAFZHGYNkrH+sFftg26X9kmYgYyDwg5XBI1aD0s",
+	"MvC2xY1IaKjeGzVUwxAehZ2vNTpYmW1G31geP39ikQHjdecYS8jPU1Y9ZY91MRyhyyssBBZ6xvmKlEac",
+	"JJKT7hLZo2A0U6rND4e3yObw9BgyuEGOjjzkMBlNRnuaJQX0NjjI4d1oMpr0XEkXzXXM9lbXNUqSCmPB",
+	"LsgS5DNKNDJDU5AXVdxQZaxpqDaVa3AECZ6thh+XywNTqs/sbaJh26IgR8jPHyJ/n6HRPIxQIliHdBpw",
+	"3SHPV/rkS33W9RPuMOu7n9R5oPWFBsdAPi5nYH8y0U9fiC5tCI0rUu7jq6hZ3a3hbU7Qqv5HwzEo89ND",
+	"BhVxa0Vnynmb0v/zCAywT3d+U7LD+3xXrNrfg38qrMUYbf1g6Kd9M4wnMTFg4SqH5YvVrLBeU8wHW5oz",
+	"vO4w9kUc7LSIijq/3QK+kJijhKp7sWtbbXhywJpD0qbaLL7sscZFUX9p9HPOin/rq9IxFkI81x+JQeFN",
+	"50vkF7z2v7zVUK1SbXrrfP3mbajeT8uLDJxgm0LfMlaQw5vx/Xsw7h+D8eolWAyNtMx2/qjhA/VrOv71",
+	"ZEd2+zj0aDejunuvnerE7dxnGbzfvvjHXpC9bUxEvkE2yEy81QoGhm9Lhk+J4clbY+0GUKTF7wAAAP//",
+	"OzgG++0IAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
