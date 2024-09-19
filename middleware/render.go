@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,30 +10,200 @@ import (
 	"log/slog"
 	"net/http"
 	"path"
+	"path/filepath"
 	"strings"
 	"text/template"
 )
 
-// ErrNoTemplateFound is returned when no matching templates are found.
-var ErrNoTemplateFound = errors.New("middleware: no templates found")
+var (
+	// ErrNoTemplateFound is returned when no matching templates are found.
+	ErrNoTemplateFound = errors.New("middleware: no templates found")
+
+	// extensionMimeType is a map of file extensions to MIME types.
+	extensionMimeType = map[string]string{
+		"html": "text/html",
+		"txt":  "text/plain",
+	}
+)
+
+// TemplateExtension is the extension used for template files.
+//
+// I.e. a file named "index.tmpl.html" would be a template file.
+const TemplateExtension = "tmpl"
+
+// TemplateSource is an interface that combines the capabilities of fs.ReadDirFS
+// and fs.ReadFileFS.
+// It represents a source from which templates can be read, allowing directory
+// reading and file reading operations.
+type TemplateSource interface {
+	fs.ReadDirFS
+	fs.ReadFileFS
+}
+
+// Template represents the properties of a single template.
+type Template struct {
+	Format    string
+	Templated bool
+	Path      string
+}
+
+// Templates represents a collection of templates, which can be looked up by
+// name.
+type Templates struct {
+	fs            fs.ReadFileFS
+	templateNames map[string][]Template
+}
+
+// DecodeBase64 decodes a base64-encoded string.
+func DecodeBase64(str string) (string, error) {
+	bs, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		return "", fmt.Errorf("middleware: decoding template base64: %w", err)
+	}
+
+	return string(bs), nil
+}
+
+// NewTemplates creates a new instance of Templates, using the given file system
+// as the source of templates, and the given path as the root directory.
+func NewTemplates(ts TemplateSource, rootDir string) (*Templates, error) {
+	rootDir = path.Clean(rootDir)
+
+	templates := &Templates{
+		fs:            ts,
+		templateNames: make(map[string][]Template),
+	}
+
+	// Walk the directory to get all the templates.
+	if err := fs.WalkDir(ts, rootDir, func(fullpath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Walk all directories.
+		if d.IsDir() {
+			return nil
+		}
+
+		// Get the templates from the directory entry.
+		dirTemplates, err := templatesFromDirentry(rootDir, fullpath, d)
+		if err != nil {
+			return err
+		}
+
+		for name, template := range dirTemplates {
+			templates.templateNames[name] = append(templates.templateNames[name], template)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("middleware: walking template directory %s: %w", rootDir, err)
+	}
+
+	return templates, nil
+}
+
+// templatesFromDirentry reads a file directory entry and returns a map of
+// templates found within it.
+func templatesFromDirentry(
+	rootDir string,
+	path string,
+	direntry fs.DirEntry,
+) (map[string]Template, error) {
+	if direntry.IsDir() {
+		panic("middleware: templatesFromDirentry called with a directory")
+	}
+
+	filename := filepath.Base(path)
+
+	name, ext, found := strings.Cut(filename, ".")
+	if !found {
+		return map[string]Template{}, nil
+	}
+
+	relPath, err := filepath.Rel(rootDir, path)
+	if err != nil {
+		return map[string]Template{}, fmt.Errorf(
+			"middleware: getting relative path: %w", err,
+		)
+	}
+
+	templateName := filepath.Join(filepath.Dir(relPath), name)
+
+	if name == "index" {
+		templateName = filepath.Dir(templateName)
+	}
+
+	templated := strings.HasPrefix(ext, TemplateExtension+".")
+	ext = strings.TrimPrefix(ext, TemplateExtension+".")
+	mimeType, ok := extensionMimeType[ext]
+
+	if !ok {
+		slog.Info("unknown MIME type", slog.String("extension", ext))
+	}
+
+	return map[string]Template{
+		templateName: {
+			Format:    mimeType,
+			Templated: templated,
+			Path:      path,
+		},
+	}, nil
+}
+
+// Open opens a template file for reading.
+func (t Templates) Open(name string) (*Template, io.ReadCloser, error) {
+	templateName, err := filepath.Rel("/", path.Clean(name))
+	if err != nil {
+		return nil, nil, fmt.Errorf("middleware: getting relative path: %w", err)
+	}
+
+	template, ok := t.templateNames[templateName]
+	if !ok {
+		return nil, nil, ErrNoTemplateFound
+	}
+
+	templateFile, err := t.fs.Open(template[0].Path)
+	if err != nil {
+		return nil, nil, fmt.Errorf(
+			"middleware: opening template file %s: %w",
+			template[0].Path,
+			err,
+		)
+	}
+
+	return &template[0], templateFile, nil
+}
 
 // RenderMiddleware makes a request to the API for the given path, if not
 // already an API request, and renders the response.
 func RenderMiddleware(
-	templates fs.FS,
+	templateSource TemplateSource,
 	templateDir string,
 ) func(next http.Handler) http.Handler {
+	templates, err := NewTemplates(templateSource, templateDir)
+	if err != nil {
+		panic(err)
+	}
+
+	for name, templates := range templates.templateNames {
+		for _, template := range templates {
+			slog.Info(
+				"found template",
+				slog.String("name", name),
+				slog.String("path", template.Path),
+				slog.String("format", template.Format),
+			)
+		}
+	}
+
 	// GetTemplate reads a template from the templates directory.
-	GetTemplate := func(name string) ([]byte, error) {
+	GetTemplate := func(name string) (*Template, []byte, error) {
 		templatePath := path.Clean(name)
 
-		if templateDir != "" {
-			templatePath = path.Join(templateDir, templatePath)
-		}
-
-		templateFile, err := templates.Open(templatePath)
+		template, templateFile, err := templates.Open(templatePath)
 		if err != nil {
-			return nil, fmt.Errorf(
+			return nil, nil, fmt.Errorf(
 				"middleware: opening template file %s: %w",
 				templatePath,
 				err,
@@ -41,29 +212,16 @@ func RenderMiddleware(
 
 		defer templateFile.Close()
 
-		template, err := io.ReadAll(templateFile)
+		templateContents, err := io.ReadAll(templateFile)
 		if err != nil {
-			return nil, fmt.Errorf(
+			return nil, nil, fmt.Errorf(
 				"middleware: reading template %s: %w",
 				name,
 				err,
 			)
 		}
 
-		return template, nil
-	}
-
-	// GetFirstTemplate reads the first template that exists from a list of
-	// names.
-	GetFirstTemplate := func(names ...string) ([]byte, error) {
-		for _, name := range names {
-			template, err := GetTemplate(name)
-			if err == nil {
-				return template, nil
-			}
-		}
-
-		return nil, ErrNoTemplateFound
+		return template, templateContents, nil
 	}
 
 	// StandardError responds with a standard error message.
@@ -94,24 +252,39 @@ func RenderMiddleware(
 				return
 			}
 
-			// Try the untemplated version first.
-			untemplated, err := GetFirstTemplate(cleanPath+".html", path.Join(cleanPath, "index.html"))
-			if err == nil {
-				w.Write(untemplated)
+			templateDetails, templateContent, err := GetTemplate(cleanPath)
+			if errors.Is(err, ErrNoTemplateFound) {
+				StandardError(w, http.StatusNotFound)
+
+				return
+			} else if err != nil {
+				slog.InfoContext(
+					r.Context(),
+					"failed to get template",
+					slog.Any("error", err),
+				)
+
+				StandardError(w, http.StatusInternalServerError)
 
 				return
 			}
 
-			// If the templated version doesn't exist, return a 404.
-			tmpl, err := GetFirstTemplate(cleanPath+".tmpl.html", path.Join(cleanPath, "index.tmpl.html"))
-			if err != nil {
-				StandardError(w, http.StatusNotFound)
+			// If the template is not a template, return it as is.
+			if !templateDetails.Templated {
+				w.Header().Set("Content-Type", templateDetails.Format)
+				w.Write(templateContent)
 
 				return
 			}
 
 			// Build the response template.
-			template, err := template.New("response").Parse(string(tmpl))
+			responseTemplate := template.New("response")
+
+			responseTemplate.Funcs(template.FuncMap{
+				"from_base64": DecodeBase64,
+			})
+
+			_, err = responseTemplate.Parse(string(templateContent))
 			if err != nil {
 				slog.ErrorContext(
 					r.Context(),
@@ -192,8 +365,10 @@ func RenderMiddleware(
 			// Add some useful utilities.
 			decodedResponse["Request"] = r.URL
 
+			w.Header().Set("Content-Type", templateDetails.Format)
+
 			// Render the response template.
-			if err := template.Execute(w, decodedResponse); err != nil {
+			if err := responseTemplate.Execute(w, decodedResponse); err != nil {
 				slog.ErrorContext(
 					r.Context(),
 					"failed to render template",
