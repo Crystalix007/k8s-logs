@@ -3,6 +3,56 @@ info:
   title: Kubernetes Log Viewer API
   version: 0.0.1
 paths:
+  /log:
+    get:
+      summary: Get a log file
+      description: Gets the contents of a log file.
+      parameters:
+        - name: path
+          in: query
+          description: The path to the log file.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Application content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contents:
+                    type: string
+                    format: binary
+                    example: |
+                      log contents
+                required:
+                  - contents
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Log file not specified"
+                required:
+                  - message
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Log file not found"
+                required:
+                  - message
   /logs:
     get:
       summary: Get a list of logs

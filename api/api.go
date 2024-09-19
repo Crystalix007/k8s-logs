@@ -18,6 +18,9 @@ type API struct {
 	workingDirectory string
 }
 
+// Ensure that API implements the StrictServerInterface.
+var _ StrictServerInterface = &API{}
+
 // New creates a new instance of the API, with all the necessary routes and
 // handlers.
 func New(opts ...Option) (*API, error) {
