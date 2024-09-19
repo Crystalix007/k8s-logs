@@ -34,6 +34,7 @@ func New(opts ...Option) (*API, error) {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.RedirectSlashes)
 	mux.Use(kmiddleware.AbsoluteURL)
+	mux.Use(middleware.SetHeader("X-Content-Type-Options", "nosniff"))
 
 	mux.Get("/api/openapi.json", a.GetOpenAPISpec)
 	mux.Get("/api", a.RenderDocs)
