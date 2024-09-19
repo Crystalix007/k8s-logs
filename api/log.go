@@ -101,7 +101,7 @@ func (a *API) GetLogPage(
 		*previousPage = page - 1
 	}
 
-	if page < len(lines)/pageSize {
+	if page+1 < len(lines)/pageSize {
 		nextPage = new(int)
 		*nextPage = page + 1
 	}
