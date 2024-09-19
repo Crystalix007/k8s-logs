@@ -6,6 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	kmiddleware "github.com/crystalix007/log-viewer/middleware"
 )
 
 //go:generate go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen --config=oapi-codegen.yaml api.yaml
@@ -26,15 +28,16 @@ func New(opts ...Option) (*API, error) {
 	}
 
 	mux := chi.NewRouter()
+	mux.Use(middleware.Logger)
 	mux.Use(middleware.RedirectSlashes)
-	mux.Use(AbsoluteURL)
+	mux.Use(kmiddleware.AbsoluteURL)
 
 	mux.Get("/api/openapi.json", a.GetOpenAPISpec)
 	mux.Get("/api", a.RenderDocs)
 
 	// Apply the render middleware to all other routes.
 	mux.Group(func(r chi.Router) {
-		r.Use(RenderMiddleware)
+		r.Use(kmiddleware.RenderMiddleware(templates, "templates"))
 
 		// If the request is not handled by the Render middleware, return a 404.
 		r.Handle("/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
