@@ -2,12 +2,43 @@ package api
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path"
 
 	"github.com/oapi-codegen/runtime/types"
 )
+
+func (a *API) GetLog(
+	ctx context.Context,
+	request GetLogRequestObject,
+) (GetLogResponseObject, error) {
+	if request.Params.Path == "" {
+		return GetLog400JSONResponse{
+			Message: "Requires a non-empty log path",
+		}, nil
+	}
+
+	name := path.Base(request.Params.Path)
+
+	fileInfo, err := os.Stat(a.getLogPath(request.Params.Path))
+	if errors.Is(err, os.ErrNotExist) {
+		return GetLog404JSONResponse{
+			Message: "The specified path does not exist",
+		}, nil
+	} else if err != nil {
+		return GetLog400JSONResponse{
+			Message: "Invalid path",
+		}, nil
+	}
+
+	return GetLog200JSONResponse{
+		Name:     name,
+		Path:     request.Params.Path,
+		FileSize: int(fileInfo.Size()),
+	}, nil
+}
 
 func (a *API) GetLogRaw(
 	ctx context.Context,
@@ -19,10 +50,7 @@ func (a *API) GetLogRaw(
 		}, nil
 	}
 
-	path := path.Join(
-		a.workingDirectory,
-		path.Clean(request.Params.Path),
-	)
+	path := a.getLogPath(request.Params.Path)
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -47,4 +75,10 @@ func (a *API) GetLogRaw(
 	return GetLogRaw200JSONResponse{
 		Contents: responseFile,
 	}, nil
+}
+
+func (a *API) getLogPath(
+	requestPath string,
+) string {
+	return path.Join(a.workingDirectory, path.Clean(requestPath))
 }

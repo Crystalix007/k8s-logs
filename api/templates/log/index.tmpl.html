@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Kubernetes Logs</title>
+        <script src="https://unpkg.com/htmx.org@2.0.2"
+            integrity="sha384-Y7hw+L/jvKeWIRRkqWYfPcvVxHzVzn5REgzbawhxAuQGwX1XWe70vji+VSeHOThJ"
+            crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <header>
+            <h1>{{ .name }} - <code>{{ .path }}</code></h1>
+            <p>{{ .file_size }} bytes</p>
+        </header>
+
+        <div hx-get="/api/log/page?path={{ .path }}" hx-trigger="revealed" hx-swap="innerHTML">
+            <em>Loading logs...</em>
+        </div>
+    </body>
+</html>
