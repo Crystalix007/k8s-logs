@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -37,6 +38,80 @@ func (a *API) GetLog(
 		Name:     name,
 		Path:     request.Params.Path,
 		FileSize: int(fileInfo.Size()),
+	}, nil
+}
+
+const pageSize = 50
+
+func (a *API) GetLogPage(
+	ctx context.Context,
+	request GetLogPageRequestObject,
+) (GetLogPageResponseObject, error) {
+	if request.Params.Path == "" {
+		return GetLogPage400JSONResponse{
+			Message: "Requires a non-empty log path",
+		}, nil
+	}
+
+	path := a.getLogPath(request.Params.Path)
+
+	file, err := os.Open(path)
+	if err != nil {
+		return GetLogPage400JSONResponse{
+			Message: "Failed to open file",
+		}, nil
+	}
+
+	defer file.Close()
+
+	bs, err := io.ReadAll(file)
+	if err != nil {
+		return GetLogPage400JSONResponse{
+			Message: "Failed to read file",
+		}, nil
+	}
+
+	lines := bytes.Split(bs, []byte("\n"))
+	var contents types.File
+
+	var page int
+
+	if request.Params.Page != nil {
+		page = *request.Params.Page
+	}
+
+	if len(lines) > pageSize*page {
+		startIndex := pageSize * page
+		endIndex := pageSize * (page + 1)
+
+		if endIndex > len(lines) {
+			endIndex = len(lines)
+		}
+
+		contents.InitFromBytes(bytes.Join(lines[startIndex:endIndex], []byte("\n")), path)
+	}
+
+	var (
+		previousPage *int
+		nextPage     *int
+	)
+
+	if page > 1 {
+		previousPage = new(int)
+		*previousPage = page - 1
+	}
+
+	if page < len(lines)/pageSize {
+		nextPage = new(int)
+		*nextPage = page + 1
+	}
+
+	return GetLogPage200JSONResponse{
+		PreviousPage: previousPage,
+		Page:         page,
+		NextPage:     nextPage,
+		Contents:     contents,
+		Path:         request.Params.Path,
 	}, nil
 }
 

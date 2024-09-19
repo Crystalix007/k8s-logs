@@ -11,7 +11,7 @@
                 {{ if .dir }}
                 <a href="logs?path={{ .path }}">{{ .name }}</a>
                 {{ else }}
-                <a href="log/raw?path={{ .path }}">{{ .name }}</a>
+                <a href="log?path={{ .path }}">{{ .name }}</a>
                 {{ end }}
             </li>
             {{ end}}

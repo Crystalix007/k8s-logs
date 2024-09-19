@@ -45,6 +45,78 @@ paths:
                     example: "Log file not found"
                 required:
                   - message
+  /log/page:
+    get:
+      summary: Get log page
+      description: Gets a page of output from a log file.
+      parameters:
+        - name: path
+          in: query
+          description: The path to the log file.
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: The page number to retrieve.
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    type: string
+                    example: "var/log1.log"
+                  previous_page:
+                    type: integer
+                    example: 0
+                  page:
+                    type: integer
+                    example: 0
+                  next_page:
+                    type: integer
+                    example: 1
+                  contents:
+                    type: string
+                    format: binary
+                    example: |
+                      log contents
+                required:
+                  - page
+                  - contents
+                  - path
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Log file not specified"
+                required:
+                  - message
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Log file not found"
+                required:
+                  - message
+
   /log/raw:
     get:
       summary: Get a log file

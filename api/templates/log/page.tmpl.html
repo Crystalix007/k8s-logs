@@ -1,0 +1,5 @@
+{{ if .contents }}
+<pre style="whitespace: pre-wrap" {{ if .next_page }}hx-get="/log/page?path={{ .path }}&page={{ .next_page }}" hx-trigger="revealed" hx-swap="afterend"{{ end }}>
+    {{- .contents | from_base64 -}}
+</pre>
+{{ end}}
